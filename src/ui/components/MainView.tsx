@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ItemId } from '../../core/schema.ts';
 import { BUNDLED_DATASETS } from '../datasets.ts';
+import { loadUserRecipeSetJson } from '../persistence.ts';
 import { useAppStore } from '../store/appStore.ts';
 import { ControlPanel } from './ControlPanel.tsx';
 import { GraphView } from './GraphView.tsx';
@@ -18,20 +19,34 @@ export function MainView() {
   const setTargetItem = useAppStore((s) => s.setTargetItem);
   const setTargetQtyInput = useAppStore((s) => s.setTargetQtyInput);
 
-  // 初回マウント時のみ、URL の ds/target/qty から状態を復元する（同梱データセットのみ対応）。
+  // 初回マウント時のみ状態を復元する。URL の ds があれば同梱データセットを優先し、
+  // なければ localStorage に保存されたユーザー投入 JSON を試す（SPEC.md 8.2節）。
   useEffect(() => {
     const ds = searchParams.get('ds');
-    if (ds === null) return;
-    const dataset = BUNDLED_DATASETS.find((d) => d.id === ds);
-    if (dataset === undefined) return;
-    void dataset.load().then((json) => {
-      loadRecipeSet(dataset.id, json);
-      const target = searchParams.get('target');
-      if (target !== null) setTargetItem(target as ItemId);
-      const qty = searchParams.get('qty');
-      if (qty !== null) setTargetQtyInput(qty);
-    });
-    // 初回マウント時にのみ URL から復元する意図的な設計のため、依存配列は空にする。
+    if (ds !== null) {
+      const dataset = BUNDLED_DATASETS.find((d) => d.id === ds);
+      if (dataset !== undefined) {
+        void dataset.load().then((json) => {
+          loadRecipeSet(dataset.id, json);
+          const target = searchParams.get('target');
+          if (target !== null) setTargetItem(target as ItemId);
+          const qty = searchParams.get('qty');
+          if (qty !== null) setTargetQtyInput(qty);
+        });
+      }
+      return;
+    }
+
+    const savedJson = loadUserRecipeSetJson();
+    if (savedJson !== null) {
+      try {
+        const json: unknown = JSON.parse(savedJson);
+        loadRecipeSet('user-provided', json);
+      } catch {
+        // 保存されていた JSON が壊れている場合は静かに無視する。
+      }
+    }
+    // 初回マウント時にのみ復元する意図的な設計のため、依存配列は空にする。
   }, []);
 
   // 同梱データセット使用時のみ完全な共有リンクを発行する（SPEC.md 8.2節）。

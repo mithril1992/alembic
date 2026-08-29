@@ -3,7 +3,9 @@ import type { ItemId, Recipe, RecipeId, RecipeSet } from './schema.ts';
 
 export type DemandInfo = {
   totalDemand: Map<ItemId, { toString(): string }>;
-  craftCounts: Map<RecipeId, bigint>;
+  // 離散モードでは bigint（実行回数）、レートモードでは Rational（毎秒実行回数）。
+  // どちらも toString() で表示できればよく、export.ts はモードを区別しない。
+  craftCounts: Map<RecipeId, { toString(): string }>;
 };
 
 function sanitizeId(id: string): string {

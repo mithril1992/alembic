@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import type { ItemId } from '../../core/schema.ts';
 import { BUNDLED_DATASETS } from '../datasets.ts';
+import { saveUserRecipeSetJson } from '../persistence.ts';
 import { useAppStore } from '../store/appStore.ts';
+import { ExportPanel } from './ExportPanel.tsx';
 import { ResolutionPanel } from './ResolutionPanel.tsx';
 
 export function ControlPanel() {
@@ -16,6 +19,7 @@ export function ControlPanel() {
 
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSelectDataset(id: string): Promise<void> {
     const dataset = BUNDLED_DATASETS.find((d) => d.id === id);
@@ -24,15 +28,35 @@ export function ControlPanel() {
     loadRecipeSet(dataset.id, json);
   }
 
-  function handleLoadPastedJson(): void {
+  function loadUserJsonText(text: string): void {
     try {
-      const json: unknown = JSON.parse(jsonInput);
+      const json: unknown = JSON.parse(text);
       setJsonError(null);
       loadRecipeSet('user-provided', json);
+      saveUserRecipeSetJson(text);
     } catch {
       setJsonError('JSON の構文が不正です');
     }
   }
+
+  function handleLoadPastedJson(): void {
+    loadUserJsonText(jsonInput);
+  }
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    if (file === undefined) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : '';
+      setJsonInput(text);
+      loadUserJsonText(text);
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // 同じファイルを続けて選び直せるようにする
+  }
+
+  const isBundled = datasetId !== null && BUNDLED_DATASETS.some((d) => d.id === datasetId);
 
   return (
     <div
@@ -66,16 +90,28 @@ export function ControlPanel() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>JSON を貼り付け</h2>
+        <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>JSON を貼り付け / アップロード</h2>
         <textarea
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
           rows={6}
           style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 11 }}
         />
-        <button type="button" onClick={handleLoadPastedJson} style={{ marginTop: 4 }}>
-          読み込む
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+          <button type="button" onClick={handleLoadPastedJson}>
+            読み込む
+          </button>
+          <button type="button" onClick={() => fileInputRef.current?.click()}>
+            ファイルを選択
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+        </div>
         {jsonError !== null && <p style={{ color: '#e06c75', fontSize: 12 }}>{jsonError}</p>}
       </section>
 
@@ -109,10 +145,18 @@ export function ControlPanel() {
               style={{ display: 'block', marginTop: 4, width: '100%', boxSizing: 'border-box' }}
             />
           </div>
+
+          <p style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+            {isBundled
+              ? '同梱データセットのため、URL で現在の状態を共有できます。'
+              : 'ユーザー投入データのため、共有リンクは無効です（URL には反映されません）。'}
+          </p>
         </section>
       )}
 
       <ResolutionPanel />
+
+      <ExportPanel />
 
       {error !== null && (
         <section>
