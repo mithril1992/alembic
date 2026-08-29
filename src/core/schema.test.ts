@@ -11,6 +11,7 @@ function minimalRecipeSet(overrides: Record<string, unknown> = {}) {
       quantityMode: 'rate',
       allowCategoryInputs: false,
       displayMode: 'reducedPair',
+      maxProductivityBonus: '0.3',
     },
     items: [
       { id: 'iron-plate', name: '鉄板', categories: [] },
@@ -46,6 +47,15 @@ describe('parseRecipeSet', () => {
     expect(recipe?.outputs[0]?.qty.toString()).toBe('1/1');
     expect(recipe?.time.toString()).toBe('1/2');
     expect(result.data.machines[0]?.baseSpeed.toString()).toBe('5/4');
+    expect(result.data.profile.maxProductivityBonus.toString()).toBe('3/10');
+  });
+
+  it('rejects a profile missing maxProductivityBonus', () => {
+    const set = minimalRecipeSet();
+    const profile = set.profile as { maxProductivityBonus?: string };
+    delete profile.maxProductivityBonus;
+    const result = parseRecipeSet(set);
+    expect(result.success).toBe(false);
   });
 
   it('rejects a schemaVersion other than 1', () => {
@@ -101,6 +111,7 @@ describe('parseRecipeSet', () => {
         name: 'Atelier Ryza',
         quantityMode: 'discrete',
         allowCategoryInputs: true,
+        maxProductivityBonus: '0',
       },
     });
     (set.recipes[0] as { inputs: unknown[] }).inputs = [

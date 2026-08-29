@@ -18,6 +18,7 @@ function baseProfile() {
     name: 'test',
     quantityMode: 'discrete' as const,
     allowCategoryInputs: false,
+    maxProductivityBonus: '0',
   };
 }
 

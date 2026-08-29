@@ -66,6 +66,9 @@ const profileSchema = z.object({
   quantityMode: quantityModeSchema,
   allowCategoryInputs: z.boolean(),
   displayMode: displayModeSchema.optional(),
+  // 生産力ボーナスの上限（SPEC.md 5.2節）。バージョン依存のためコードにハードコードせず、
+  // データセット側の定数として持つ。生産力を使わないプロファイルは "0" を指定する。
+  maxProductivityBonus: rationalString,
 });
 export type GameProfile = z.infer<typeof profileSchema>;
 

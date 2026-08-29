@@ -22,6 +22,7 @@ function buildFixture(): RecipeSet {
       name: 'test',
       quantityMode: 'discrete',
       allowCategoryInputs: false,
+      maxProductivityBonus: '0',
     },
     items: [
       { id: 'iron-plate', name: '鉄板', categories: [] },

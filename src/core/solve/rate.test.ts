@@ -19,6 +19,7 @@ function baseProfile() {
     name: 'test',
     quantityMode: 'rate' as const,
     allowCategoryInputs: false,
+    maxProductivityBonus: '0',
   };
 }
 
