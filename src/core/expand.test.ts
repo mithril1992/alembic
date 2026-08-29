@@ -172,7 +172,7 @@ describe('expand', () => {
     );
   });
 
-  it('throws on a cyclic dependency', () => {
+  it('marks the back edge of a cycle as isCyclic instead of throwing', () => {
     const set = parse({
       schemaVersion: 1,
       profile: baseProfile(),
@@ -205,6 +205,14 @@ describe('expand', () => {
     });
 
     const index = buildRecipeIndex(set);
-    expect(() => expand(set, index, 'a' as ItemId)).toThrow(/cyclic dependency/);
+    const graph = expand(set, index, 'a' as ItemId);
+
+    expect(graph.nodes.size).toBe(2);
+    expect(graph.edges).toHaveLength(2);
+
+    const aToB = graph.edges.find((e) => e.consumer === 'a' && e.ingredient === 'b');
+    const bToA = graph.edges.find((e) => e.consumer === 'b' && e.ingredient === 'a');
+    expect(aToB?.isCyclic).toBe(false); // 探索が最初に a から b へ辿った辺
+    expect(bToA?.isCyclic).toBe(true); // b から祖先 a へ戻る back edge
   });
 });
