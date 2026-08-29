@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { buildRecipeIndex } from '../../core/index.ts';
 import { expand, type ExpandedGraph } from '../../core/expand.ts';
 import { Rational } from '../../core/rational.ts';
-import { parseRecipeSet, type ItemId, type RecipeSet } from '../../core/schema.ts';
+import { resolutionKeyToString, type ResolutionChoice } from '../../core/resolution.ts';
+import { parseRecipeSet, type ItemId, type RecipeId, type RecipeSet } from '../../core/schema.ts';
 import { solveDiscrete, type DiscreteSolveResult } from '../../core/solve/discrete.ts';
 import { solveRate, type RateSolveResult } from '../../core/solve/rate.ts';
 
@@ -15,6 +16,9 @@ type AppState = {
   datasetId: string | null;
   targetItem: ItemId | null;
   targetQtyInput: string;
+  // SPEC.md 4章: ResolutionChoice はグローバルに一意。データセットを差し替えない限り、
+  // 目標アイテムを変えても選択は保持する。
+  resolutionChoice: ResolutionChoice;
   graph: ExpandedGraph | null;
   solveResult: SolveResult | null;
   error: string | null;
@@ -24,6 +28,7 @@ type AppActions = {
   loadRecipeSet: (datasetId: string, json: unknown) => void;
   setTargetItem: (item: ItemId) => void;
   setTargetQtyInput: (input: string) => void;
+  chooseRecipe: (item: ItemId, recipeId: RecipeId) => void;
   recompute: () => void;
 };
 
@@ -34,6 +39,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   datasetId: null,
   targetItem: null,
   targetQtyInput: '1',
+  resolutionChoice: new Map(),
   graph: null,
   solveResult: null,
   error: null,
@@ -49,6 +55,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
         recipeSet: null,
         datasetId: null,
         targetItem: null,
+        resolutionChoice: new Map(),
         graph: null,
         solveResult: null,
       });
@@ -58,6 +65,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
       recipeSet: parsed.data,
       datasetId,
       targetItem: null,
+      resolutionChoice: new Map(),
       graph: null,
       solveResult: null,
       error: null,
@@ -74,8 +82,15 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
     get().recompute();
   },
 
+  chooseRecipe: (item, recipeId) => {
+    const next = new Map(get().resolutionChoice);
+    next.set(resolutionKeyToString({ kind: 'recipe', item }), recipeId);
+    set({ resolutionChoice: next });
+    get().recompute();
+  },
+
   recompute: () => {
-    const { recipeSet, targetItem, targetQtyInput } = get();
+    const { recipeSet, targetItem, targetQtyInput, resolutionChoice } = get();
     if (recipeSet === null || targetItem === null) {
       set({ graph: null, solveResult: null });
       return;
@@ -91,10 +106,19 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
 
     try {
       const index = buildRecipeIndex(recipeSet);
-      const graph = expand(recipeSet, index, targetItem);
+      const graph = expand(recipeSet, index, targetItem, resolutionChoice);
+      // 未解決のアイテムが残っている間は、部分的なグラフだけを表示し求解はしない
+      // （solveDiscrete/solveRate は未解決の複数候補レシピに出会うと throw する）。
+      if (graph.unresolved.size > 0) {
+        set({ graph, solveResult: null, error: null });
+        return;
+      }
       const solveResult: SolveResult =
         recipeSet.profile.quantityMode === 'discrete'
-          ? { mode: 'discrete', result: solveDiscrete(recipeSet, index, targetItem, qty) }
+          ? {
+              mode: 'discrete',
+              result: solveDiscrete(recipeSet, index, targetItem, qty, resolutionChoice),
+            }
           : { mode: 'rate', result: solveRate(graph, qty) };
       set({ graph, solveResult, error: null });
     } catch (e) {

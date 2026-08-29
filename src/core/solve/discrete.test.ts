@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildRecipeIndex } from '../index.ts';
 import { Rational } from '../rational.ts';
+import { resolutionKeyToString, type ResolutionChoice } from '../resolution.ts';
 import { parseRecipeSet, type ItemId, type RecipeSet } from '../schema.ts';
 import { solveDiscrete } from './discrete.ts';
 
@@ -191,5 +192,88 @@ describe('solveDiscrete', () => {
     expect(result.leftover.get('light-oil' as ItemId)?.toString()).toBe('2/1');
     expect(result.leftover.get('heavy-oil' as ItemId)?.isZero()).toBe(true);
     expect(result.totalDemand.get('crude-oil' as ItemId)?.toString()).toBe('20/1');
+  });
+
+  it('throws when an item has multiple candidate recipes and no ResolutionChoice is given', () => {
+    const set = parse({
+      schemaVersion: 1,
+      profile: baseProfile(),
+      items: [{ id: 'petroleum-gas', name: 'petroleum gas', categories: [] }],
+      recipes: [
+        {
+          id: 'basic-oil-processing',
+          name: 'basic oil processing',
+          outputs: [{ item: 'petroleum-gas', qty: '4' }],
+          inputs: [],
+          time: '5',
+          machineCategory: 'chemical',
+          allowProductivity: true,
+        },
+        {
+          id: 'advanced-oil-processing',
+          name: 'advanced oil processing',
+          outputs: [{ item: 'petroleum-gas', qty: '5' }],
+          inputs: [],
+          time: '5',
+          machineCategory: 'chemical',
+          allowProductivity: true,
+        },
+      ],
+      machines: [],
+      rawItems: [],
+    });
+    const index = buildRecipeIndex(set);
+
+    expect(() => solveDiscrete(set, index, 'petroleum-gas' as ItemId, Rational.of(10n))).toThrow(
+      /multiple candidate recipes/,
+    );
+  });
+
+  it('uses the recipe chosen via resolutionChoice', () => {
+    const set = parse({
+      schemaVersion: 1,
+      profile: baseProfile(),
+      items: [{ id: 'petroleum-gas', name: 'petroleum gas', categories: [] }],
+      recipes: [
+        {
+          id: 'basic-oil-processing',
+          name: 'basic oil processing',
+          outputs: [{ item: 'petroleum-gas', qty: '4' }],
+          inputs: [],
+          time: '5',
+          machineCategory: 'chemical',
+          allowProductivity: true,
+        },
+        {
+          id: 'advanced-oil-processing',
+          name: 'advanced oil processing',
+          outputs: [{ item: 'petroleum-gas', qty: '5' }],
+          inputs: [],
+          time: '5',
+          machineCategory: 'chemical',
+          allowProductivity: true,
+        },
+      ],
+      machines: [],
+      rawItems: [],
+    });
+    const index = buildRecipeIndex(set);
+    const resolutionChoice: ResolutionChoice = new Map([
+      [
+        resolutionKeyToString({ kind: 'recipe', item: 'petroleum-gas' as ItemId }),
+        'advanced-oil-processing',
+      ],
+    ]);
+
+    const result = solveDiscrete(
+      set,
+      index,
+      'petroleum-gas' as ItemId,
+      Rational.of(10n),
+      resolutionChoice,
+    );
+
+    expect(result.craftCounts.get('advanced-oil-processing' as never)).toBe(2n); // ceil(10/5)
+    expect(result.craftCounts.has('basic-oil-processing' as never)).toBe(false);
   });
 });

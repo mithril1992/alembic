@@ -1,5 +1,6 @@
 import type { RecipeIndex } from '../index.ts';
 import { Rational } from '../rational.ts';
+import { pickRecipe, type ResolutionChoice } from '../resolution.ts';
 import type { ItemId, RecipeId, RecipeSet } from '../schema.ts';
 
 export type DiscreteSolveResult = {
@@ -13,7 +14,10 @@ export type DiscreteSolveResult = {
 
 // 離散モード（アトリエ）の必要量計算（SPEC.md 6.3節）。
 // ceil(必要量 / レシピ産出量) で実行回数を求め、端数の余りを在庫として次の消費に回す。
-// この初版は expand.ts と同じ前提（循環なし・レシピ一意・カテゴリ材料なし）に立つ。
+// この初版は expand.ts と同じ前提（循環なし・カテゴリ材料なし）に立つ。
+// 複数候補レシピは resolutionChoice（SPEC.md 4章）で解決する。未解決の場合は
+// グラフが完全には解決されていないということであり、呼び出し側（UI）で
+// 先に ResolutionChoice を確定させてから呼ぶ想定のため、ここでは throw する。
 //
 // 在庫を経由した逐次処理のため、同一アイテムへの複数の消費要求をどの順で処理しても
 // 最終的な実行回数・余りは変わらない（後から来た要求は先に生産した余りを先に消費するだけ）。
@@ -22,6 +26,7 @@ export function solveDiscrete(
   index: RecipeIndex,
   target: ItemId,
   targetQty: Rational,
+  resolutionChoice: ResolutionChoice = new Map(),
 ): DiscreteSolveResult {
   const rawItemIds = new Set(recipeSet.rawItems);
   const totalDemand = new Map<ItemId, Rational>();
@@ -36,13 +41,20 @@ export function solveDiscrete(
     if (isTerminal) {
       return;
     }
-    if (recipes.length > 1) {
-      throw new Error(
-        `solveDiscrete: item "${item}" has multiple candidate recipes; ResolutionChoice is not yet supported`,
-      );
+
+    let recipe;
+    if (recipes.length === 1) {
+      recipe = recipes[0];
+      if (recipe === undefined) throw new Error('unreachable');
+    } else {
+      const chosen = pickRecipe(recipes, item, resolutionChoice);
+      if (chosen === undefined) {
+        throw new Error(
+          `solveDiscrete: item "${item}" has multiple candidate recipes and no ResolutionChoice was provided`,
+        );
+      }
+      recipe = chosen;
     }
-    const recipe = recipes[0];
-    if (recipe === undefined) throw new Error('unreachable');
 
     const currentStock = stock.get(item) ?? Rational.of(0n);
     if (currentStock.cmp(qty) >= 0) {

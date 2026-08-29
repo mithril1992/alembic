@@ -29,7 +29,13 @@ export function computeLayout(graph: ExpandedGraph): GraphLayout {
   for (const itemId of graph.nodes.keys()) {
     g.setNode(itemId, { width: NODE_WIDTH, height: NODE_HEIGHT });
   }
-  for (const edge of graph.edges) {
+  // 未解決アイテム（graph.nodes に含まれない）への辺は、レイアウト対象外として無視する。
+  // setEdge は存在しないノードを暗黙に作ってしまい、width/height 未設定のまま
+  // dagre.layout に渡ると座標計算が崩れるため、両端が揃っている辺だけを渡す。
+  const resolvedEdges = graph.edges.filter(
+    (edge) => graph.nodes.has(edge.consumer) && graph.nodes.has(edge.ingredient),
+  );
+  for (const edge of resolvedEdges) {
     g.setEdge(edge.consumer, edge.ingredient);
   }
 
@@ -42,7 +48,7 @@ export function computeLayout(graph: ExpandedGraph): GraphLayout {
   }
 
   const edges = new Map<string, EdgeLayout>();
-  for (const edge of graph.edges) {
+  for (const edge of resolvedEdges) {
     const e = g.edge(edge.consumer, edge.ingredient);
     edges.set(edgeKey(edge.consumer, edge.ingredient), { points: e.points });
   }

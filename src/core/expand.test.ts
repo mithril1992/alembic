@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expand } from './expand.ts';
 import { buildRecipeIndex } from './index.ts';
+import { resolutionKeyToString, type ResolutionChoice } from './resolution.ts';
 import { parseRecipeSet, type ItemId, type RecipeSet } from './schema.ts';
 
 function parse(input: unknown): RecipeSet {
@@ -138,8 +139,8 @@ describe('expand', () => {
     expect(graph.nodes.get('mystery' as ItemId)).toBeNull();
   });
 
-  it('throws when an item has multiple candidate recipes', () => {
-    const set = parse({
+  function buildMultiRecipeSet(): RecipeSet {
+    return parse({
       schemaVersion: 1,
       profile: baseProfile(),
       items: [{ id: 'petroleum-gas', name: 'petroleum gas', categories: [] }],
@@ -166,11 +167,44 @@ describe('expand', () => {
       machines: [],
       rawItems: [],
     });
+  }
 
+  it('records an item with multiple candidate recipes as unresolved instead of throwing', () => {
+    const set = buildMultiRecipeSet();
     const index = buildRecipeIndex(set);
-    expect(() => expand(set, index, 'petroleum-gas' as ItemId)).toThrow(
-      /multiple candidate recipes/,
-    );
+
+    const graph = expand(set, index, 'petroleum-gas' as ItemId);
+
+    expect(graph.nodes.has('petroleum-gas' as ItemId)).toBe(false);
+    expect(graph.unresolved.get('petroleum-gas' as ItemId)?.map((r) => r.id)).toEqual([
+      'basic-oil-processing',
+      'advanced-oil-processing',
+    ]);
+  });
+
+  it('resolves an item once a matching resolutionChoice is provided', () => {
+    const set = buildMultiRecipeSet();
+    const index = buildRecipeIndex(set);
+    const resolutionChoice: ResolutionChoice = new Map([
+      [resolutionKeyToString({ kind: 'recipe', item: 'petroleum-gas' as ItemId }), 'advanced-oil-processing'],
+    ]);
+
+    const graph = expand(set, index, 'petroleum-gas' as ItemId, resolutionChoice);
+
+    expect(graph.unresolved.size).toBe(0);
+    expect(graph.nodes.get('petroleum-gas' as ItemId)?.id).toBe('advanced-oil-processing');
+  });
+
+  it('treats a stale resolutionChoice (no longer among candidates) as unresolved', () => {
+    const set = buildMultiRecipeSet();
+    const index = buildRecipeIndex(set);
+    const resolutionChoice: ResolutionChoice = new Map([
+      [resolutionKeyToString({ kind: 'recipe', item: 'petroleum-gas' as ItemId }), 'no-such-recipe'],
+    ]);
+
+    const graph = expand(set, index, 'petroleum-gas' as ItemId, resolutionChoice);
+
+    expect(graph.unresolved.has('petroleum-gas' as ItemId)).toBe(true);
   });
 
   it('marks the back edge of a cycle as isCyclic instead of throwing', () => {

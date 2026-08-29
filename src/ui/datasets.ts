@@ -12,4 +12,9 @@ export const BUNDLED_DATASETS: BundledDataset[] = [
     name: 'サンプル（デモ用）',
     load: async () => (await import('../data/sample-factorio.json')).default,
   },
+  {
+    id: 'sample-multi-recipe',
+    name: 'サンプル：複数候補レシピ（デモ用）',
+    load: async () => (await import('../data/sample-multi-recipe.json')).default,
+  },
 ];

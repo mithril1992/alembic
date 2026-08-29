@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "profile": {
+    "id": "sample-multi-recipe",
+    "name": "サンプル：複数候補レシピ（デモ用。実際のゲームデータではありません）",
+    "quantityMode": "rate",
+    "allowCategoryInputs": false,
+    "displayMode": "reducedPair",
+    "maxProductivityBonus": "0"
+  },
+  "items": [
+    { "id": "crude-oil", "name": "原油", "categories": [] },
+    { "id": "petroleum-gas", "name": "石油ガス", "categories": [] }
+  ],
+  "recipes": [
+    {
+      "id": "basic-oil-processing",
+      "name": "石油の基本処理",
+      "outputs": [{ "item": "petroleum-gas", "qty": "4" }],
+      "inputs": [{ "kind": "item", "item": "crude-oil", "qty": "10" }],
+      "time": "5",
+      "machineCategory": "chemical",
+      "allowProductivity": true
+    },
+    {
+      "id": "advanced-oil-processing",
+      "name": "石油の高度な処理",
+      "outputs": [{ "item": "petroleum-gas", "qty": "5" }],
+      "inputs": [{ "kind": "item", "item": "crude-oil", "qty": "10" }],
+      "time": "5",
+      "machineCategory": "chemical",
+      "allowProductivity": true
+    }
+  ],
+  "machines": [
+    { "id": "chemical-plant", "name": "化学プラント", "category": "chemical", "baseSpeed": "1" }
+  ],
+  "rawItems": ["crude-oil"]
+}

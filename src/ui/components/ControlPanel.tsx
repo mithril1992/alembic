@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ItemId } from '../../core/schema.ts';
 import { BUNDLED_DATASETS } from '../datasets.ts';
 import { useAppStore } from '../store/appStore.ts';
+import { ResolutionPanel } from './ResolutionPanel.tsx';
 
 export function ControlPanel() {
   const recipeSet = useAppStore((s) => s.recipeSet);
@@ -110,6 +111,8 @@ export function ControlPanel() {
           </div>
         </section>
       )}
+
+      <ResolutionPanel />
 
       {error !== null && (
         <section>
