@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "profile": {
+    "id": "sample-factorio",
+    "name": "サンプル（デモ用。実際のゲームデータではありません）",
+    "quantityMode": "rate",
+    "allowCategoryInputs": false,
+    "displayMode": "reducedPair",
+    "maxProductivityBonus": "0.3"
+  },
+  "items": [
+    { "id": "iron-ore", "name": "鉄鉱石", "categories": [] },
+    { "id": "iron-plate", "name": "鉄板", "categories": [] },
+    { "id": "iron-gear-wheel", "name": "鉄の歯車", "categories": [] },
+    { "id": "engine-unit", "name": "エンジンユニット", "categories": [] }
+  ],
+  "recipes": [
+    {
+      "id": "smelt-iron-plate",
+      "name": "鉄板の精錬",
+      "outputs": [{ "item": "iron-plate", "qty": "1" }],
+      "inputs": [{ "kind": "item", "item": "iron-ore", "qty": "1" }],
+      "time": "3.2",
+      "machineCategory": "smelting",
+      "allowProductivity": true
+    },
+    {
+      "id": "iron-gear-wheel",
+      "name": "鉄の歯車",
+      "outputs": [{ "item": "iron-gear-wheel", "qty": "1" }],
+      "inputs": [{ "kind": "item", "item": "iron-plate", "qty": "2" }],
+      "time": "0.5",
+      "machineCategory": "assembling",
+      "allowProductivity": true
+    },
+    {
+      "id": "engine-unit",
+      "name": "エンジンユニット",
+      "outputs": [{ "item": "engine-unit", "qty": "1" }],
+      "inputs": [
+        { "kind": "item", "item": "iron-gear-wheel", "qty": "1" },
+        { "kind": "item", "item": "iron-plate", "qty": "1" }
+      ],
+      "time": "10",
+      "machineCategory": "assembling",
+      "allowProductivity": true
+    }
+  ],
+  "machines": [
+    { "id": "stone-furnace", "name": "石炉", "category": "smelting", "baseSpeed": "1" },
+    { "id": "assembling-machine-3", "name": "組立機3", "category": "assembling", "baseSpeed": "1.25" }
+  ],
+  "rawItems": ["iron-ore"]
+}
